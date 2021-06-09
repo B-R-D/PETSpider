@@ -93,6 +93,7 @@ def get_following(se, proxy: dict) -> dict:
     try:
         with se.get(_ROOT_URL + 'bookmark.php',
                     params={'type': 'user'},
+                    headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
                     proxies=proxy,
                     timeout=5) as fo_res:
             fo_html = BeautifulSoup(fo_res.text, 'lxml')
@@ -126,6 +127,7 @@ def get_new(se, proxy: dict = None, num: int = 0, user_id: str = None) -> set:
         item_dic = {}
         if user_id:  # Fetch user's new illustration
             with se.get(_USER_URL + user_id + '/profile/all',
+                        headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
                         proxies=proxy,
                         timeout=5) as user_res:
                 user_json = json.loads(user_res.text)
@@ -145,6 +147,7 @@ def get_new(se, proxy: dict = None, num: int = 0, user_id: str = None) -> set:
             for p in range(pn):
                 with se.get(_ROOT_URL + 'bookmark_new_illust.php',
                             params={'p': str(p + 1)},
+                            headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
                             proxies=proxy,
                             timeout=5) as new_res:
                     new_html = BeautifulSoup(new_res.text, 'lxml')
@@ -181,6 +184,7 @@ def get_detail(se, pid: str, proxy: dict = None) -> dict:
 
     try:
         with se.get(_ILLUST_URL + pid,
+                    headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
                     proxies=proxy,
                     timeout=5) as item_detail:
             item_json = json.loads(item_detail.text)

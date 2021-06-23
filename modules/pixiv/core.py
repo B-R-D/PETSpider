@@ -6,13 +6,12 @@ import random
 import re
 import sqlite3
 from datetime import date
-from tempfile import NamedTemporaryFile
 
 import requests
 from bs4 import BeautifulSoup
 
 from modules import exception
-from modules import globj
+from modules.misc import GlobalVar, name_verify
 
 # Define misc
 _LOGIN_URL = 'https://accounts.pixiv.net/'
@@ -72,7 +71,7 @@ def get_user(se, proxy: dict) -> tuple:
                     timeout=5,
                     headers={
                         'Referer': 'https://www.pixiv.net/',
-                        'User-Agent': random.choice(globj.GlobalVar.user_agent)}
+                        'User-Agent': random.choice(GlobalVar.user_agent)}
                     ) as user_res:
             user_info = re.findall(r'"userData":{"id":"(\d{1,10})","pixivId":"(.*)","name":"(.*)","profileImg":',
                                    user_res.text)
@@ -94,7 +93,7 @@ def get_following(se, proxy: dict) -> dict:
     try:
         with se.get(_ROOT_URL + 'bookmark.php',
                     params={'type': 'user'},
-                    headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                    headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                     proxies=proxy,
                     timeout=5) as fo_res:
             fo_html = BeautifulSoup(fo_res.text, 'lxml')
@@ -128,7 +127,7 @@ def get_new(se, proxy: dict = None, num: int = 0, user_id: str = None) -> set:
         item_dic = {}
         if user_id:  # Fetch user's new illustration
             with se.get(_USER_URL + user_id + '/profile/all',
-                        headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                        headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                         proxies=proxy,
                         timeout=5) as user_res:
                 user_json = json.loads(user_res.text)
@@ -148,7 +147,7 @@ def get_new(se, proxy: dict = None, num: int = 0, user_id: str = None) -> set:
             for p in range(pn):
                 with se.get(_ROOT_URL + 'bookmark_new_illust.php',
                             params={'p': str(p + 1)},
-                            headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                            headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                             proxies=proxy,
                             timeout=5) as new_res:
                     new_html = BeautifulSoup(new_res.text, 'lxml')
@@ -185,7 +184,7 @@ def get_detail(se, pid: str, proxy: dict = None) -> dict:
 
     try:
         with se.get(_ILLUST_URL + pid,
-                    headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                    headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                     proxies=proxy,
                     timeout=5) as item_detail:
             item_json = json.loads(item_detail.text)
@@ -246,37 +245,17 @@ def path_name(item: dict, save_path: str, folder_rule: dict = None, file_rule: d
     else:
         folder_name = ''
         for i in range(len(folder_rule)):
-            next_name = globj.name_verify(str(item[folder_rule[i]]), item['userId'])
+            next_name = name_verify(str(item[folder_rule[i]]), item['userId'])
             folder_name = os.path.join(folder_name, next_name)
         folder_name = os.path.join(save_path, folder_name)
 
     if file_rule is None:
         file_name = item['illustId']  # Default folder name: illustId
     else:
-        raw = (globj.name_verify(str(item[file_rule[i]]), item['userId']) for i in range(len(file_rule)))
+        raw = (name_verify(str(item[file_rule[i]]), item['userId']) for i in range(len(file_rule)))
         file_name = '_'.join(raw)  # File name without page number and ext
 
     return folder_name, file_name
-
-
-def download_thumb(se, proxy: dict, item: dict) -> str:
-    """Download thumbnail to a temp folder."""
-    header = {'Referer': _ROOT_URL,
-              'User-Agent': random.choice(globj.GlobalVar.user_agent)}
-    try:
-        with se.get(item['thumb'],
-                    headers=header,
-                    proxies=proxy,
-                    stream=True,
-                    timeout=5) as thumb_res:
-            with NamedTemporaryFile('w+b', prefix='PETSpider_', delete=False) as thumb:
-                for chunk in thumb_res.iter_content():
-                    thumb.write(chunk)
-                path = thumb.name
-    except (OSError, IOError):
-        return ''
-    else:
-        return path
 
 
 def download_pic(se, proxy: dict, item: dict, path: tuple, page: int):
@@ -303,7 +282,7 @@ def download_pic(se, proxy: dict, item: dict, path: tuple, page: int):
     if not os.path.exists(file_path):  # If file exists, skip it
         print('downloading', file_path)
         header = {'Referer': referer,
-                  'User-Agent': random.choice(globj.GlobalVar.user_agent)}
+                  'User-Agent': random.choice(GlobalVar.user_agent)}
         se.headers.update(header)
         try:
             with se.get(real_url,
@@ -318,6 +297,11 @@ def download_pic(se, proxy: dict, item: dict, path: tuple, page: int):
             raise requests.Timeout('Timeout during retrieving', item['url'])
     else:
         print('skip', file_path)
+
+
+################
+# 数据库操作函数 #
+################
 
 
 def fetcher(pid: str = None, pname: str = None, uid: str = None,

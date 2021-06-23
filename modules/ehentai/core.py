@@ -3,12 +3,12 @@
 import os
 import random
 import re
-from tempfile import NamedTemporaryFile
 
 import requests
 from bs4 import BeautifulSoup
 
-from modules import globj, exception
+from modules import exception
+from modules.misc import GlobalVar, name_verify
 
 _LOGIN_URL = 'https://forums.e-hentai.org/index.php'
 _ACCOUNT_URL = 'https://e-hentai.org/home.php'
@@ -38,7 +38,7 @@ def login(se, proxy: dict, uid: str, pw: str) -> bool:
         with se.post(_LOGIN_URL,
                      params={'act': 'Login', 'CODE': '01'},
                      data={'CookieDate': '1', 'UserName': uid, 'PassWord': pw},
-                     headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                     headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                      proxies=proxy,
                      timeout=5) as login_res:
             login_html = BeautifulSoup(login_res.text, 'lxml')
@@ -47,7 +47,7 @@ def login(se, proxy: dict, uid: str, pw: str) -> bool:
         if login_html.head.title.string == 'Please stand by...':
             with se.get(_EXHENTAI_URL,
                         proxies=proxy,
-                        headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                        headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                         timeout=5) as ex_res:
                 ex_html = BeautifulSoup(ex_res.text, 'lxml')
                 if ex_html.head.title.string == 'ExHentai.org':
@@ -74,7 +74,7 @@ def account_info(se, proxy: dict) -> tuple:
     """
     try:
         with se.get(_ACCOUNT_URL,
-                    headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                    headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                     proxies=proxy,
                     timeout=5) as info_res:
             info_html = BeautifulSoup(info_res.text, 'lxml')
@@ -103,7 +103,7 @@ def information(se, proxy: dict, addr: str) -> dict:
     try:
         with se.get(addr,
                     params={'inline_set': 'ts_m'},
-                    headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                    headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                     proxies=proxy,
                     timeout=5) as gallery_res:
             gallery_html = BeautifulSoup(gallery_res.text, 'lxml')
@@ -153,7 +153,7 @@ def fetch_keys(se, proxy: dict, info: dict) -> dict:
         for p in range(pn):
             with se.get(info['addr'],
                         params={'inline_set': 'ts_m', 'p': p},
-                        headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                        headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                         proxies=proxy,
                         timeout=5) as gallery_res:
                 gallery_html = BeautifulSoup(gallery_res.text, 'lxml')
@@ -168,7 +168,7 @@ def fetch_keys(se, proxy: dict, info: dict) -> dict:
         # Fetch showkey from first picture
         showkey_url = '/'.join(['https://exhentai.org/s', keys['1'], gid + '-1'])
         with se.get(showkey_url,
-                    headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                    headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                     proxies=proxy,
                     timeout=5) as showkey_res:
             showkey_html = BeautifulSoup(showkey_res.text, 'lxml')
@@ -206,7 +206,7 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
                            'page': int(page),
                            'imgkey': keys[str(page)],
                            'showkey': keys['0']},
-                     headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                     headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                      proxies=proxy,
                      timeout=5) as dl_res:  # Fetch original url of picture
             dl_json = dl_res.json()
@@ -227,7 +227,7 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
         else:
             raise exception.ResponseError('Download: No plenty elements.')
 
-        folder_name = globj.name_verify(info['name'])
+        folder_name = name_verify(info['name'])
         folder_path = os.path.join(path, folder_name)
         try:  # Prevent threads starting at same time
             os.makedirs(folder_path)
@@ -235,7 +235,7 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
         except FileExistsError:
             pass
         with se.get(origin,
-                    headers={'User-Agent': random.choice(globj.GlobalVar.user_agent)},
+                    headers={'User-Agent': random.choice(GlobalVar.user_agent)},
                     proxies=proxy,
                     stream=True,
                     timeout=5) as pic_res:
@@ -259,25 +259,6 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
         raise requests.Timeout('Download: Timeout.')
     except AttributeError as e:
         raise exception.ResponseError('Download: ' + repr(e))
-
-
-def download_thumb(se, proxy: dict, info: dict) -> str:
-    """Download thumbnail to a temp folder."""
-    header = {'User-Agent': random.choice(globj.GlobalVar.user_agent)}
-    try:
-        with se.get(info['thumb'],
-                    headers=header,
-                    proxies=proxy,
-                    stream=True,
-                    timeout=5) as thumb_res:
-            with NamedTemporaryFile('w+b', prefix='PETSpider_', delete=False) as thumb:
-                for chunk in thumb_res.iter_content():
-                    thumb.write(chunk)
-                path = thumb.name
-    except (OSError, IOError):
-        return ''
-    else:
-        return path
 
 
 if __name__ == '__main__':

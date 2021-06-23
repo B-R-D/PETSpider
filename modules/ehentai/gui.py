@@ -11,7 +11,8 @@ from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QFormLayout, QWidget, QGr
                              QCheckBox, QLabel, QSplitter, QFileDialog, QFrame, QMessageBox, QTableWidget, QHeaderView,
                              QAbstractItemView, QTableWidgetItem, QSpinBox)
 
-from modules import globj, ehentai, exception
+import core
+from modules import misc, exception
 
 
 class LoginWidget(QWidget):
@@ -20,7 +21,7 @@ class LoginWidget(QWidget):
     def __init__(self, glovar):
         super().__init__()
         self.glovar = glovar
-        self.settings = QSettings(os.path.join(os.path.abspath('.'), 'settings.ini'), QSettings.IniFormat)
+        self.settings = QSettings(os.path.join(os.path.abspath('..'), 'settings.ini'), QSettings.IniFormat)
 
         self.ledit_un = QLineEdit()
         self.ledit_un.setContextMenuPolicy(Qt.NoContextMenu)
@@ -84,13 +85,13 @@ class LoginWidget(QWidget):
             self.glovar.session.cookies.update(cookies)
             self.verify_thread = VerifyThread(self, self.glovar.session, self.glovar.proxy)
             self.verify_thread.verify_success.connect(self.set_cookies)
-            self.verify_thread.except_signal.connect(globj.show_messagebox)
+            self.verify_thread.except_signal.connect(misc.show_messagebox)
             self.verify_thread.finished.connect(partial(self.set_disabled, False))
             self.verify_thread.start()
         else:
             self.login_thread = LoginThread(self, self.glovar.session, proxy, password, username)
             self.login_thread.login_success.connect(self.set_cookies)
-            self.login_thread.except_signal.connect(globj.show_messagebox)
+            self.login_thread.except_signal.connect(misc.show_messagebox)
             self.login_thread.finished.connect(partial(self.set_disabled, False))
             self.login_thread.start()
 
@@ -127,8 +128,8 @@ class LoginThread(QThread):
 
     def run(self):
         try:
-            ehentai.login(self.session, proxy=self.proxy, pw=self.pw, uid=self.uid)
-            info = ehentai.account_info(self.session, self.proxy)
+            core.login(self.session, proxy=self.proxy, pw=self.pw, uid=self.uid)
+            info = core.account_info(self.session, self.proxy)
         except requests.exceptions.RequestException as e:
             self.except_signal.emit(self.parent, QMessageBox.Warning, '连接失败', '请检查网络或使用代理。\n' + repr(e))
         except exception.ValidationError:
@@ -152,7 +153,7 @@ class VerifyThread(QThread):
 
     def run(self):
         try:
-            info = ehentai.account_info(self.session, self.proxy)
+            info = core.account_info(self.session, self.proxy)
         except (requests.exceptions.ProxyError,
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError) as e:
@@ -180,7 +181,7 @@ class FetchDataThread(QThread):
 
     def run(self):
         try:
-            info = ehentai.information(self.session, self.proxy, self.addr)
+            info = core.information(self.session, self.proxy, self.addr)
         except (requests.exceptions.ProxyError,
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError) as e:
@@ -220,7 +221,7 @@ class DownloadPicThread(QRunnable):
 
     def run(self):  # Only do retrying when connection error occurs
         try:
-            ehentai.download(self.sess, self.proxy, self.info, self.keys, self.page, self.path, self.rn, self.rw)
+            core.download(self.sess, self.proxy, self.info, self.keys, self.page, self.path, self.rn, self.rw)
         except (requests.exceptions.ProxyError,
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError,
@@ -249,7 +250,7 @@ class DownloadThumbThread(QThread):
         self.info = info
 
     def run(self):
-        path = ehentai.download_thumb(self.session, self.proxy, self.info)
+        path = misc.download_thumb(self.session, self.proxy, self.info['thumb'])
         if path:
             self.info['thumb_path'] = path
             self.download_success.emit(self.info)
@@ -268,7 +269,7 @@ class FetchKeyThread(QThread):
 
     def run(self):
         try:
-            keys = ehentai.fetch_keys(self.session, self.proxy, self.info)
+            keys = core.fetch_keys(self.session, self.proxy, self.info)
         except (requests.exceptions.ProxyError,
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError) as e:
@@ -292,7 +293,7 @@ class MainWidget(QWidget):
     def __init__(self, glovar, info):
         super().__init__()
         self.glovar = glovar
-        self.settings = QSettings(os.path.join(os.path.abspath('.'), 'settings.ini'), QSettings.IniFormat)
+        self.settings = QSettings(os.path.join(os.path.abspath('..'), 'settings.ini'), QSettings.IniFormat)
         self.refresh_thread = QThread()
         self.fetch_thread = QThread()
         self.fetch_key_thread = QThread()
@@ -305,7 +306,7 @@ class MainWidget(QWidget):
         self.thread_count = 0
         self.cancel_download_flag = 0
 
-        self.ledit_addr = globj.LineEditor()
+        self.ledit_addr = misc.LineEditor()
         self.cbox_rename = QCheckBox('按序号重命名')
         self.cbox_rename.setToolTip('勾选后将以图片在画廊中的序号重命名而非使用原图片名。')
         self.cbox_rewrite = QCheckBox('覆盖模式')
@@ -454,14 +455,14 @@ class MainWidget(QWidget):
             if re.match(r'(https?://)?e[x-]hentai.org/g/\d{1,7}/\w{10}/', addr):  # Check legality
                 self.fetch_thread = FetchDataThread(self, self.glovar.session, self.glovar.proxy, addr)
                 self.fetch_thread.fetch_success.connect(self.fetch_info_succeed)
-                self.fetch_thread.except_signal.connect(globj.show_messagebox)
+                self.fetch_thread.except_signal.connect(misc.show_messagebox)
                 self.fetch_thread.finished.connect(self.fetch_info_finished)
                 self.fetch_thread.start()
             else:
-                globj.show_messagebox(self, QMessageBox.Warning, '错误', '画廊地址输入错误！')
+                misc.show_messagebox(self, QMessageBox.Warning, '错误', '画廊地址输入错误！')
                 self.btn_get.setDisabled(False)
         else:
-            globj.show_messagebox(self, QMessageBox.Warning, '错误', '请输入画廊地址！')
+            misc.show_messagebox(self, QMessageBox.Warning, '错误', '请输入画廊地址！')
             self.btn_get.setDisabled(False)
 
     def show_info(self, info: dict):
@@ -520,14 +521,14 @@ class MainWidget(QWidget):
                     if re.match(r'(https?://)?e[x-]hentai.org/g/\d{1,7}/\w{10}/', addr):  # Check legality
                         self.fetch_thread = FetchDataThread(self, self.glovar.session, self.glovar.proxy, addr)
                         self.fetch_thread.fetch_success.connect(self.add_que)
-                        self.fetch_thread.except_signal.connect(globj.show_messagebox)
+                        self.fetch_thread.except_signal.connect(misc.show_messagebox)
                         self.fetch_thread.finished.connect(self.fetch_info_finished)
                         self.fetch_thread.start()
                     else:
-                        globj.show_messagebox(self, QMessageBox.Warning, '错误', '画廊地址输入错误！')
+                        misc.show_messagebox(self, QMessageBox.Warning, '错误', '画廊地址输入错误！')
                         self.fetch_info_finished()
                 else:
-                    globj.show_messagebox(self, QMessageBox.Warning, '错误', '请输入画廊地址！')
+                    misc.show_messagebox(self, QMessageBox.Warning, '错误', '请输入画廊地址！')
 
     def fetch_info_succeed(self, info: dict):
         """After fetching info successfully, set Current variable."""
@@ -558,7 +559,7 @@ class MainWidget(QWidget):
                     self.que.removeRow(del_bottom)
                     del_bottom -= 1
                 else:
-                    globj.show_messagebox(self, QMessageBox.Warning, '错误', '不能移除下载中的任务，请先停止队列！')
+                    misc.show_messagebox(self, QMessageBox.Warning, '错误', '不能移除下载中的任务，请先停止队列！')
                     break
             if not self.que.rowCount():  # When the queue is empty, clear dict of info,
                 self.que_dict.clear()  # in case of one gallery is added repeatedly
@@ -589,7 +590,7 @@ class MainWidget(QWidget):
                 info = self.que_dict[self.que.item(line, 4).text()]
                 self.current_line['info'] = info
                 self.fetch_key_thread = FetchKeyThread(self, self.glovar.session, self.glovar.proxy, info)
-                self.fetch_key_thread.except_signal.connect(globj.show_messagebox)
+                self.fetch_key_thread.except_signal.connect(misc.show_messagebox)
                 self.fetch_key_thread.fetch_success.connect(self.fetch_finished)
                 self.fetch_key_thread.start()
             else:
@@ -597,9 +598,9 @@ class MainWidget(QWidget):
                 self.btn_start.setText('开始队列')
                 self.btn_start.clicked.disconnect(self.stop_que)
                 self.btn_start.clicked.connect(self.start_que_before)
-                globj.show_messagebox(self, QMessageBox.Information, '完成', '队列下载完成！')
+                misc.show_messagebox(self, QMessageBox.Information, '完成', '队列下载完成！')
         else:
-            globj.show_messagebox(self, QMessageBox.Warning, '警告', '下载队列为空！')
+            misc.show_messagebox(self, QMessageBox.Warning, '警告', '下载队列为空！')
 
     def fetch_finished(self, info, keys):
         self.current_line['keys'] = keys
@@ -607,7 +608,7 @@ class MainWidget(QWidget):
         self.que.item(line, 3).setText('下载中')
 
         self.settings.beginGroup('RuleSetting')
-        root_path = self.settings.value('ehentai_root_path', os.path.abspath('.'))
+        root_path = self.settings.value('ehentai_root_path', os.path.abspath('..'))
         self.settings.endGroup()
         self.settings.beginGroup('MiscSetting')
         dl_sametime = int(self.settings.value('dl_sametime', 3))
@@ -643,7 +644,7 @@ class MainWidget(QWidget):
         self.thread_count -= 1
         if not self.thread_count:
             self.stop_que()
-            globj.show_messagebox(*args)
+            misc.show_messagebox(*args)
 
     def download_finished(self, info, keys, page, root_path, rename, rewrite):
         self.thread_count -= 1
@@ -691,7 +692,7 @@ class MainWidget(QWidget):
         self.btn_refresh.setDisabled(True)
         self.refresh_thread = VerifyThread(self, self.glovar.session, self.glovar.proxy)
         self.refresh_thread.verify_success.connect(self.refresh_user_info)
-        self.refresh_thread.except_signal.connect(globj.show_messagebox)
+        self.refresh_thread.except_signal.connect(misc.show_messagebox)
         self.refresh_thread.finished.connect(partial(self.btn_refresh.setDisabled, False))
         self.refresh_thread.start()
 
@@ -737,7 +738,7 @@ class SaveRuleSettingTab(QWidget):
         super().__init__()
         self.settings = settings
         self.root_path = None
-        self.ledit_prev = globj.LineEditor()
+        self.ledit_prev = misc.LineEditor()
         self.ledit_prev.setReadOnly(True)
         self.ledit_prev.setContextMenuPolicy(Qt.NoContextMenu)
 
@@ -759,7 +760,7 @@ class SaveRuleSettingTab(QWidget):
 
     def choose_dir(self):
         self.settings.beginGroup('RuleSetting')
-        setting_root_path = self.settings.value('ehentai_root_path', os.path.abspath('.'))
+        setting_root_path = self.settings.value('ehentai_root_path', os.path.abspath('..'))
         root_path = QFileDialog.getExistingDirectory(self, '选择目录', setting_root_path)
         self.settings.endGroup()
         if root_path:  # When click Cancel, root_path is None
@@ -767,7 +768,7 @@ class SaveRuleSettingTab(QWidget):
             self.previewer()
 
     def previewer(self):
-        if globj.PLATFORM == 'Windows':
+        if misc.PLATFORM == 'Windows':
             root_path = self.root_path.replace('/', '\\')
         else:
             root_path = self.root_path
@@ -781,7 +782,7 @@ class SaveRuleSettingTab(QWidget):
 
     def restore(self):
         self.settings.beginGroup('RuleSetting')
-        self.root_path = self.settings.value('ehentai_root_path', os.path.abspath('.'))
+        self.root_path = self.settings.value('ehentai_root_path', os.path.abspath('..'))
         self.settings.endGroup()
         self.ledit_prev.setText(self.root_path)
         self.previewer()

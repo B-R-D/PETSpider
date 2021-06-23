@@ -11,7 +11,8 @@ from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QFormLayout, QGridLayout,
                              QSplitter, QButtonGroup, QWidget, QGroupBox, QTextEdit, QPushButton, QCheckBox, QFrame,
                              QMessageBox, QTableWidget, QLabel, QAbstractItemView, QSpinBox, QComboBox, QFileDialog)
 
-from modules import globj, pixiv, exception
+import core
+from modules import misc, exception
 
 
 class LoginWidget(QWidget):
@@ -20,7 +21,7 @@ class LoginWidget(QWidget):
     def __init__(self, glovar):
         super().__init__()
         self.glovar = glovar
-        self.settings = QSettings(os.path.join(os.path.abspath('.'), 'settings.ini'), QSettings.IniFormat)
+        self.settings = QSettings(os.path.join(os.path.abspath('..'), 'settings.ini'), QSettings.IniFormat)
 
         # self.ledit_un = QLineEdit()
         # self.ledit_un.setContextMenuPolicy(Qt.NoContextMenu)
@@ -90,13 +91,13 @@ class LoginWidget(QWidget):
             self.glovar.session.cookies.update(saved_cookies)
             self.verify_thread = VerifyThread(self, self.glovar.session, self.glovar.proxy)
             self.verify_thread.verify_success.connect(self.set_cookies)
-            self.verify_thread.except_signal.connect(globj.show_messagebox)
+            self.verify_thread.except_signal.connect(misc.show_messagebox)
             self.verify_thread.finished.connect(partial(self.set_disabled, False))
             self.verify_thread.start()
         else:
             self.login_thread = LoginThread(self, self.glovar.session, proxy, cookies)
             self.login_thread.login_success.connect(self.set_cookies)
-            self.login_thread.except_signal.connect(globj.show_messagebox)
+            self.login_thread.except_signal.connect(misc.show_messagebox)
             self.login_thread.finished.connect(partial(self.set_disabled, False))
             self.login_thread.start()
 
@@ -135,8 +136,8 @@ class LoginThread(QThread):
 
     def run(self):
         try:
-            pixiv.login(self.session, self.cookies)
-            info = pixiv.get_user(self.session, self.proxy)
+            core.login(self.session, self.cookies)
+            info = core.get_user(self.session, self.proxy)
         except requests.exceptions.RequestException as e:
             self.except_signal.emit(self.parent, QMessageBox.Warning, '连接失败', '请检查网络或使用代理。\n' + repr(e))
         except exception.ValidationError:
@@ -160,7 +161,7 @@ class VerifyThread(QThread):
 
     def run(self):
         try:
-            info = pixiv.get_user(self.session, self.proxy)
+            info = core.get_user(self.session, self.proxy)
         except (requests.exceptions.ProxyError,
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError) as e:
@@ -189,19 +190,19 @@ class FetchThread(QThread):
             if self.pid:
                 new_set = {self.pid}
             else:
-                new_set = pixiv.get_new(self.session, self.proxy, user_id=self.uid, num=self.num)
+                new_set = core.get_new(self.session, self.proxy, user_id=self.uid, num=self.num)
             updater = []
             results = []
             for pid in new_set:
-                fet_pic = pixiv.fetcher(pid)
+                fet_pic = core.fetcher(pid)
                 if not fet_pic:
                     print('Not in database.')
-                    fet_pic = pixiv.get_detail(self.session, pid=pid, proxy=self.proxy)
+                    fet_pic = core.get_detail(self.session, pid=pid, proxy=self.proxy)
                     updater.append(fet_pic)
                 else:
                     print('Fetch from database')
                 results.append(fet_pic)
-            pixiv.pusher(updater)
+            core.pusher(updater)
         except (requests.exceptions.ProxyError,
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError) as e:
@@ -224,18 +225,18 @@ class SauceNAOThread(QThread):
         self.proxy = proxy
         self.path = path
         self.fetch_thread = None
-        self.settings = QSettings(os.path.join(os.path.abspath('.'), 'settings.ini'), QSettings.IniFormat)
+        self.settings = QSettings(os.path.join(os.path.abspath('..'), 'settings.ini'), QSettings.IniFormat)
 
     def run(self):
         self.settings.beginGroup('MiscSetting')
         similarity = float(self.settings.value('similarity', 60.0))
         self.settings.endGroup()
         try:
-            pid = pixiv.saucenao(self.path, similarity)
+            pid = core.saucenao(self.path, similarity)
             if pid:
                 self.fetch_thread = FetchThread(self.parent, self.session, self.proxy, pid, '', 0)
                 self.fetch_thread.fetch_success.connect(self.emit)
-                self.fetch_thread.except_signal.connect(globj.show_messagebox)
+                self.fetch_thread.except_signal.connect(misc.show_messagebox)
                 self.fetch_thread.start()
             else:
                 self.except_signal.emit(self.parent, QMessageBox.Information,
@@ -267,7 +268,7 @@ class DownloadPicThread(QRunnable):
 
     def run(self):
         try:
-            pixiv.download_pic(self.session, self.proxy, self.info, self.path, self.page)
+            core.download_pic(self.session, self.proxy, self.info, self.path, self.page)
         except (requests.exceptions.ProxyError,
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError,
@@ -291,9 +292,9 @@ class DownloadThumbThread(QThread):
         self.pid = pid
 
     def run(self):
-        item = pixiv.fetcher(self.pid)
+        item = core.fetcher(self.pid)
         if item:
-            path = pixiv.download_thumb(self.session, self.proxy, item)
+            path = misc.download_thumb(self.session, self.proxy, item['thumb'])
             if path:
                 self.download_success.emit((self.pid, path))
 
@@ -304,7 +305,7 @@ class MainWidget(QWidget):
     def __init__(self, glovar, info):
         super().__init__()
         self.glovar = glovar
-        self.settings = QSettings(os.path.join(os.path.abspath('.'), 'settings.ini'), QSettings.IniFormat)
+        self.settings = QSettings(os.path.join(os.path.abspath('..'), 'settings.ini'), QSettings.IniFormat)
         self.fetch_thread = QThread()
         self.sauce_thread = QThread()
         self.thumb_thread = QThread()
@@ -321,8 +322,8 @@ class MainWidget(QWidget):
         self.show_thumb_flag = int(self.settings.value('thumbnail', True))
         self.settings.endGroup()
 
-        self.ledit_pid = globj.LineEditor()
-        self.ledit_uid = globj.LineEditor()
+        self.ledit_pid = misc.LineEditor()
+        self.ledit_uid = misc.LineEditor()
         self.ledit_num = QSpinBox()
         self.ledit_num.setContextMenuPolicy(Qt.NoContextMenu)
         self.ledit_num.setMaximum(999)
@@ -511,21 +512,21 @@ class MainWidget(QWidget):
             if re.match(r'^\d{2,9}$', pid) or re.match(r'^\d{2,9}$', uid):
                 self.fetch_thread = FetchThread(self, self.glovar.session, self.glovar.proxy, pid, uid, num)
                 self.fetch_thread.fetch_success.connect(self.tabulate)
-                self.fetch_thread.except_signal.connect(globj.show_messagebox)
+                self.fetch_thread.except_signal.connect(misc.show_messagebox)
                 self.fetch_thread.finished.connect(self.fetch_new_finished)
                 self.fetch_thread.start()
             else:
-                globj.show_messagebox(self, QMessageBox.Warning, '错误', 'ID号输入错误！')
+                misc.show_messagebox(self, QMessageBox.Warning, '错误', 'ID号输入错误！')
                 self.btn_get.setDisabled(False)
                 self.btn_dl.setDisabled(False)
         elif num:
             self.fetch_thread = FetchThread(self, self.glovar.session, self.glovar.proxy, pid, uid, num)
             self.fetch_thread.fetch_success.connect(self.tabulate)
-            self.fetch_thread.except_signal.connect(globj.show_messagebox)
+            self.fetch_thread.except_signal.connect(misc.show_messagebox)
             self.fetch_thread.finished.connect(self.fetch_new_finished)
             self.fetch_thread.start()
         else:
-            globj.show_messagebox(self, QMessageBox.Warning, '错误', '请输入查询信息！')
+            misc.show_messagebox(self, QMessageBox.Warning, '错误', '请输入查询信息！')
             self.btn_get.setDisabled(False)
             self.btn_dl.setDisabled(False)
 
@@ -575,7 +576,7 @@ class MainWidget(QWidget):
             self.btn_dl.clicked.connect(self.cancel_download)
 
             self.settings.beginGroup('RuleSetting')
-            root_path = self.settings.value('pixiv_root_path', os.path.abspath('.'))
+            root_path = self.settings.value('pixiv_root_path', os.path.abspath('..'))
             folder_rule = self.settings.value('pixiv_folder_rule', {0: 'illustId'})
             file_rule = self.settings.value('pixiv_file_rule', {0: 'illustId'})
             self.settings.endGroup()
@@ -585,8 +586,8 @@ class MainWidget(QWidget):
 
             self.thread_pool.setMaxThreadCount(dl_sametime)
             for i in range(len(items) // 6):
-                info = pixiv.fetcher(items[i * 6].text())
-                path = pixiv.path_name(info, root_path, folder_rule, file_rule)
+                info = core.fetcher(items[i * 6].text())
+                path = core.path_name(info, root_path, folder_rule, file_rule)
                 for page in range(info['pageCount']):
                     thread = DownloadPicThread(self, self.glovar.session, self.glovar.proxy, info, path, page)
                     thread.signals.except_signal.connect(self.except_download)
@@ -594,7 +595,7 @@ class MainWidget(QWidget):
                     self.thread_count += 1
                     self.thread_pool.start(thread)
         else:
-            globj.show_messagebox(self, QMessageBox.Warning, '警告', '请选择至少一行！')
+            misc.show_messagebox(self, QMessageBox.Warning, '警告', '请选择至少一行！')
 
     def cancel_download(self):
         self.btn_dl.setDisabled(True)
@@ -614,7 +615,7 @@ class MainWidget(QWidget):
         """Check whether all thread in pool has ended."""
         if not self.thread_pool.activeThreadCount():
             self.ATC_monitor.stop()
-            globj.show_messagebox(*self.except_info)
+            misc.show_messagebox(*self.except_info)
             self.btn_dl.setDisabled(False)
             self.btn_dl.setText('下载')  # Single thread needs this
             self.btn_dl.clicked.disconnect(self.cancel_download)
@@ -630,19 +631,19 @@ class MainWidget(QWidget):
             elif self.except_info:
                 self.except_info()
             else:
-                globj.show_messagebox(self, QMessageBox.Information, '下载完成', '下载成功完成！')
+                misc.show_messagebox(self, QMessageBox.Information, '下载完成', '下载成功完成！')
             self.btn_dl.setText('下载')
             self.btn_dl.clicked.disconnect(self.cancel_download)
             self.btn_dl.clicked.connect(self.download)
 
     def search_pic(self):
-        path = QFileDialog.getOpenFileName(self, '选择图片', os.path.abspath('.'), '图片文件(*.gif *.jpg *.png *.bmp)')
+        path = QFileDialog.getOpenFileName(self, '选择图片', os.path.abspath('..'), '图片文件(*.gif *.jpg *.png *.bmp)')
         if path[0]:
             self.btn_snao.setDisabled(True)
             self.btn_snao.setText('正在上传')
             self.sauce_thread = SauceNAOThread(self, self.glovar.session, self.glovar.proxy, path[0])
             self.sauce_thread.search_success.connect(self.tabulate)
-            self.sauce_thread.except_signal.connect(globj.show_messagebox)
+            self.sauce_thread.except_signal.connect(misc.show_messagebox)
             self.sauce_thread.finished.connect(self.search_pic_finished)
             self.sauce_thread.start()
 
@@ -716,7 +717,7 @@ class SaveRuleSettingTab(QWidget):
             wid.currentIndexChanged.connect(self.file_rule_updater)
             self.hlay_file_cbox.addWidget(wid)
 
-        self.ledit_prev = globj.LineEditor()
+        self.ledit_prev = misc.LineEditor()
         self.ledit_prev.setReadOnly(True)
         self.ledit_prev.setContextMenuPolicy(Qt.NoContextMenu)
 
@@ -750,7 +751,7 @@ class SaveRuleSettingTab(QWidget):
 
     def choose_dir(self):
         self.settings.beginGroup('RuleSetting')
-        setting_root_path = self.settings.value('pixiv_root_path', os.path.abspath('.'))
+        setting_root_path = self.settings.value('pixiv_root_path', os.path.abspath('..'))
         root_path = QFileDialog.getExistingDirectory(self, '选择目录', setting_root_path)
         self.settings.endGroup()
         if root_path:  # When click Cancel, root_path is None
@@ -804,7 +805,7 @@ class SaveRuleSettingTab(QWidget):
         self.previewer()
 
     def previewer(self):
-        if globj.PLATFORM == 'Windows':
+        if misc.PLATFORM == 'Windows':
             path = self.root_path.replace('/', '\\')
         else:
             path = self.root_path
@@ -830,7 +831,7 @@ class SaveRuleSettingTab(QWidget):
                     'userName': '画师名',
                     'createDate': '创建日期'}
         self.settings.beginGroup('RuleSetting')
-        self.root_path = self.settings.value('pixiv_root_path', os.path.abspath('.'))
+        self.root_path = self.settings.value('pixiv_root_path', os.path.abspath('..'))
         # Set two folder_rule vars, in case of global var modified.
         self.folder_rule = folder_rule = self.settings.value('pixiv_folder_rule', {0: 'illustId'})
         self.file_rule = file_rule = self.settings.value('pixiv_file_rule', {0: 'illustId'})

@@ -2,14 +2,18 @@
 """Global objects."""
 import os
 import platform
+import random
 import re
+from tempfile import NamedTemporaryFile
 
+import requests
 from PyQt5.QtCore import Qt, QSettings, pyqtSignal
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import (QWidget, QLineEdit, QGroupBox, QPushButton, QCheckBox, QMessageBox, QTabWidget,
                              QDoubleSpinBox, QSpinBox, QFormLayout, QHBoxLayout, QVBoxLayout, QGridLayout, QMenu)
 
-from modules import pixiv_gui, ehentai_gui
+from modules.ehentai import gui
+from modules.pixiv import gui
 
 _RE_SYMBOL = re.compile(r'[/\\|*?<>":]')
 _RE_PROXY = re.compile(r'.*:([1-9]\d{0,3}|[1-5]\d{4}|6[0-4]\d{4}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])$')
@@ -23,7 +27,7 @@ class GlobalVar(object):
                   ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
                    'Chrome/64.0.3282.140 Safari/537.36 Edge/18.17763'))
 
-    def __init__(self, session, proxy: dict, home: str):
+    def __init__(self, session: requests.Session, proxy: dict, home: str):
         self._session = session
         self._proxy = proxy
         self._home = home
@@ -195,8 +199,8 @@ class SaveRuleDialog(QWidget):
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
         self.settings = QSettings(os.path.join(os.path.abspath('.'), 'settings.ini'), QSettings.IniFormat)
-        self.pixiv_tab = pixiv_gui.SaveRuleSettingTab(self.settings)
-        self.ehentai_tab = ehentai_gui.SaveRuleSettingTab(self.settings)
+        self.pixiv_tab = gui.SaveRuleSettingTab(self.settings)
+        self.ehentai_tab = gui.SaveRuleSettingTab(self.settings)
         self.init_ui()
 
     def init_ui(self):
@@ -269,6 +273,7 @@ class LineEditor(QLineEdit):
         elif action == act_paste:
             self.paste()
 
+
 def show_messagebox(parent, style, title: str, message: str):
     msg_box = QMessageBox(parent)
     msg_box.setWindowTitle(title)
@@ -276,6 +281,35 @@ def show_messagebox(parent, style, title: str, message: str):
     msg_box.setText(message)
     msg_box.addButton('确定', QMessageBox.AcceptRole)
     msg_box.exec()
+
+
+def download_thumb(se: requests.Session, proxy: dict, addr: str) -> str:
+    """
+    下载缩略图
+
+    Args:
+        se (requests.Session): 会话对象
+        proxy (dict): 代理字典
+        addr (str): 缩略图地址
+
+    Returns:
+        成功时返回缩略图的本地绝对路径，失败时返回空字符串。
+    """
+    header = {'User-Agent': random.choice(GlobalVar.user_agent)}
+    try:
+        with se.get(addr,
+                    headers=header,
+                    proxies=proxy,
+                    stream=True,
+                    timeout=5) as thumb_res:
+            with NamedTemporaryFile('w+b', prefix='PETSpider_', delete=False) as thumb:
+                for chunk in thumb_res.iter_content():
+                    thumb.write(chunk)
+                path = thumb.name
+    except (OSError, IOError):
+        return ''
+    else:
+        return path
 
 
 def name_verify(name: str, default: str = 'NoName') -> str:

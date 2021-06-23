@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import QAction, QApplication, QMainWindow, QTabWidget, QMes
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
-from modules import globj, pixiv_gui, pixiv, ehentai_gui
+from modules import misc, pixiv, ehentai
 
 
 class MainWindow(QMainWindow):
@@ -39,9 +39,9 @@ class MainWindow(QMainWindow):
         self.tab_widget = QTabWidget()  # Main widget of main window
         self.setCentralWidget(self.tab_widget)
 
-        self.misc_setting = globj.MiscSettingDialog()
+        self.misc_setting = misc.MiscSettingDialog()
         self.misc_setting.closed.connect(self.misc_setting_checker)
-        self.rule_setting = globj.SaveRuleDialog()
+        self.rule_setting = misc.SaveRuleDialog()
 
         self.init_ui()
 
@@ -90,19 +90,19 @@ class MainWindow(QMainWindow):
         self.settings.beginGroup('MiscSetting')
         proxy = self.settings.value('proxy', {})
         self.settings.endGroup()
-        return globj.GlobalVar(session, proxy, bundle_dir)
+        return misc.GlobalVar(session, proxy, bundle_dir)
 
     def tab_logout(self, tab: str, info=None):
         """Switch tab widget to main page."""
         if tab == 'pixiv':
             # Recreate main page instance because new main page needs user's name/id
-            self.pixiv_main = pixiv_gui.MainWidget(self.pixiv_var, info)
+            self.pixiv_main = pixiv.gui.MainWidget(self.pixiv_var, info)
             self.pixiv_main.logout_sig.connect(self.tab_login)
             self.tab_widget.removeTab(0)
             self.tab_widget.insertTab(0, self.pixiv_main, self.pixiv_icon, 'Pixiv')
             self.tab_widget.setCurrentIndex(0)
         if tab == 'ehentai':
-            self.ehentai_main = ehentai_gui.MainWidget(self.ehentai_var, info)
+            self.ehentai_main = ehentai.gui.MainWidget(self.ehentai_var, info)
             self.ehentai_main.logout_sig.connect(self.tab_login)
             self.tab_widget.removeTab(1)
             self.tab_widget.insertTab(1, self.ehentai_main, self.ehentai_icon, 'Ehentai')
@@ -113,14 +113,14 @@ class MainWindow(QMainWindow):
         if tab == 'pixiv':
             # Recreate glovar instance bacause old session contains old cookies
             self.pixiv_var = self.init_var()
-            self.pixiv_login = pixiv_gui.LoginWidget(self.pixiv_var)
+            self.pixiv_login = pixiv.gui.LoginWidget(self.pixiv_var)
             self.pixiv_login.login_success.connect(self.tab_logout)
             self.tab_widget.removeTab(0)
             self.tab_widget.insertTab(0, self.pixiv_login, self.pixiv_icon, 'Pixiv')
             self.tab_widget.setCurrentIndex(0)
         if tab == 'ehentai':
             self.ehentai_var = self.init_var()
-            self.ehentai_login = ehentai_gui.LoginWidget(self.ehentai_var)
+            self.ehentai_login = ehentai.gui.LoginWidget(self.ehentai_var)
             self.ehentai_login.login_success.connect(self.tab_logout)
             self.tab_widget.removeTab(1)
             self.tab_widget.insertTab(1, self.ehentai_login, self.ehentai_icon, 'Ehentai')
@@ -133,11 +133,11 @@ class MainWindow(QMainWindow):
         self.settings.sync()
         self.settings.endGroup()
         self.pixiv_login.clear_cookies()
-        globj.show_messagebox(self, QMessageBox.Information, '清除完成', '成功清除登陆信息！')
+        misc.show_messagebox(self, QMessageBox.Information, '清除完成', '成功清除登陆信息！')
 
     def clear_db(self):
-        pixiv.cleaner()
-        globj.show_messagebox(self, QMessageBox.Information, '清除完成', '成功清除数据库缓存！')
+        pixiv.core.cleaner()
+        misc.show_messagebox(self, QMessageBox.Information, '清除完成', '成功清除数据库缓存！')
 
     def setting_dialog(self, setting):
         setting.move(self.x() + (self.width() - self.misc_setting.sizeHint().width()) / 2,

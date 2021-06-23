@@ -8,7 +8,7 @@ from tempfile import NamedTemporaryFile
 import requests
 from bs4 import BeautifulSoup
 
-from modules import globj
+from modules import globj, exception
 
 _LOGIN_URL = 'https://forums.e-hentai.org/index.php'
 _ACCOUNT_URL = 'https://e-hentai.org/home.php'
@@ -24,7 +24,7 @@ def _ban_checker(html: BeautifulSoup):
         h = match_h.group(1) if match_h else 0
         m = match_m.group(1) if match_m else 0
         s = match_s.group(1) if match_s else 0
-        raise globj.IPBannedError(h, m, s)
+        raise exception.IPBannedError(h, m, s)
 
 
 def login(se, proxy: dict, uid: str, pw: str) -> bool:
@@ -54,16 +54,16 @@ def login(se, proxy: dict, uid: str, pw: str) -> bool:
                     se.cookies.update(ex_res.cookies)  # Set cookies for exhentai
                     return True
                 else:
-                    raise globj.ValidationError('Login: Cannot get into exhentai.')
+                    raise exception.ValidationError('Login: Cannot get into exhentai.')
         elif login_html.head.title.string == 'Log In':
-            raise globj.ValidationError('Login: Incorrect username or password.')
+            raise exception.ValidationError('Login: Incorrect username or password.')
         else:
-            raise globj.ResponseError('Login: Abnormal response.')
+            raise exception.ResponseError('Login: Abnormal response.')
 
     except requests.Timeout:
         raise requests.Timeout('Login: Timeout.')
     except AttributeError as e:
-        raise globj.ResponseError('Login: ' + repr(e))
+        raise exception.ResponseError('Login: ' + repr(e))
 
 
 def account_info(se, proxy: dict) -> tuple:
@@ -84,7 +84,7 @@ def account_info(se, proxy: dict) -> tuple:
             limit = info_node('strong')
             return limit[0].string, limit[1].string
         else:
-            raise globj.ResponseError('Account_info: Abnormal response.')
+            raise exception.ResponseError('Account_info: Abnormal response.')
     except requests.Timeout:
         raise requests.Timeout('Account_info: Timeout.')
 
@@ -109,7 +109,7 @@ def information(se, proxy: dict, addr: str) -> dict:
             gallery_html = BeautifulSoup(gallery_res.text, 'lxml')
         _ban_checker(gallery_html)
         if 'Gallery not found.' in gallery_html.body.get_text() or 'Key missing' in gallery_html.body.get_text():
-            raise globj.WrongAddressError('Wrong address provided.')
+            raise exception.WrongAddressError('Wrong address provided.')
         name: str = gallery_html.find('h1', id='gj').string  # Japanese name is prior
         if not name:
             name = gallery_html.find('h1', id='gn').string
@@ -124,12 +124,12 @@ def information(se, proxy: dict, addr: str) -> dict:
                 'thumb': thumb
             }
         else:
-            raise globj.ResponseError('Information: Abnormal response.')
+            raise exception.ResponseError('Information: Abnormal response.')
 
     except requests.Timeout:
         raise requests.Timeout('Information: Timeout.')
     except AttributeError as e:
-        raise globj.ResponseError('Information: ' + repr(e))
+        raise exception.ResponseError('Information: ' + repr(e))
 
 
 def fetch_keys(se, proxy: dict, info: dict) -> dict:
@@ -179,7 +179,7 @@ def fetch_keys(se, proxy: dict, info: dict) -> dict:
     except requests.Timeout:
         raise requests.Timeout('Fetch_keys: Timeout.')
     except AttributeError as e:
-        raise globj.ResponseError('Fetch_keys: ' + repr(e))
+        raise exception.ResponseError('Fetch_keys: ' + repr(e))
 
 
 def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rename=False, rewrite=False):
@@ -212,11 +212,11 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
             dl_json = dl_res.json()
 
         if dl_json.get('error'):  # Wrong imgkey or showkey
-            raise globj.ResponseError('Download: ' + dl_json['error'])
+            raise exception.ResponseError('Download: ' + dl_json['error'])
         if dl_json.get('i3'):  # Whether Reach limitation
             url_html = BeautifulSoup(dl_json['i3'], 'lxml')
             if url_html.a.img['src'] == 'https://exhentai.org/img/509.gif':
-                raise globj.LimitationReachedError(page)
+                raise exception.LimitationReachedError(page)
 
         if dl_json.get('i7'):
             url_html = BeautifulSoup(dl_json['i7'], 'lxml')  # Origin image
@@ -225,7 +225,7 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
             url_html = BeautifulSoup(dl_json['i3'], 'lxml')  # Showing image is original
             origin = url_html.a.img['src']
         else:
-            raise globj.ResponseError('Download: No plenty elements.')
+            raise exception.ResponseError('Download: No plenty elements.')
 
         folder_name = globj.name_verify(info['name'])
         folder_path = os.path.join(path, folder_name)
@@ -241,7 +241,7 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
                     timeout=5) as pic_res:
             url = pic_res.url
             if url.split('/')[2] == 'exhentai.org':  # If response cannot redirect(302), raise exception
-                raise globj.LimitationReachedError(page)
+                raise exception.LimitationReachedError(page)
             file_name = os.path.split(pic_res.url)[-1].rstrip('?dl=1')  # Get file name from url
             if rename:
                 file_name = str(page) + os.path.splitext(file_name)[1]
@@ -258,7 +258,7 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
     except requests.Timeout:
         raise requests.Timeout('Download: Timeout.')
     except AttributeError as e:
-        raise globj.ResponseError('Download: ' + repr(e))
+        raise exception.ResponseError('Download: ' + repr(e))
 
 
 def download_thumb(se, proxy: dict, info: dict) -> str:

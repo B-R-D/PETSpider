@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QFormLayout, QGridLayout,
                              QSplitter, QButtonGroup, QWidget, QGroupBox, QTextEdit, QPushButton, QCheckBox, QFrame,
                              QMessageBox, QTableWidget, QLabel, QAbstractItemView, QSpinBox, QComboBox, QFileDialog)
 
-from modules import globj, pixiv
+from modules import globj, pixiv, exception
 
 
 class LoginWidget(QWidget):
@@ -139,9 +139,9 @@ class LoginThread(QThread):
             info = pixiv.get_user(self.session, self.proxy)
         except requests.exceptions.RequestException as e:
             self.except_signal.emit(self.parent, QMessageBox.Warning, '连接失败', '请检查网络或使用代理。\n' + repr(e))
-        except globj.ValidationError:
+        except exception.ValidationError:
             self.except_signal.emit(self.parent, QMessageBox.Critical, '错误', '登陆名或密码错误。')
-        except globj.ResponseError as e:
+        except exception.ResponseError as e:
             self.except_signal.emit(self.parent, QMessageBox.Critical,
                                     '未知错误', '返回值错误，请向开发者反馈\n{0}'.format(repr(e)))
         else:
@@ -165,7 +165,7 @@ class VerifyThread(QThread):
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError) as e:
             self.except_signal.emit(self.parent, QMessageBox.Warning, '连接失败', '请检查网络或使用代理。\n' + repr(e))
-        except globj.ResponseError:
+        except exception.ResponseError:
             self.except_signal.emit(self.parent, QMessageBox.Critical, '登陆失败', '请尝试清除cookies重新登陆。')
         else:
             self.verify_success.emit(info)
@@ -206,7 +206,7 @@ class FetchThread(QThread):
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError) as e:
             self.except_signal.emit(self.parent, QMessageBox.Warning, '连接失败', '请检查网络或使用代理。\n' + repr(e))
-        except globj.ResponseError as e:
+        except exception.ResponseError as e:
             self.except_signal.emit(self.parent, QMessageBox.Critical,
                                     '未知错误', '返回值错误，请向开发者反馈\n{0}'.format(repr(e)))
         else:

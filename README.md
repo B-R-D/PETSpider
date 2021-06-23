@@ -1,2 +1,2 @@
 # PETSpider
-A crawler to fetch resource from Pixiv, E-hentai and Twitter.
+A crawler to fetch resource from Pixiv and E-hentai.

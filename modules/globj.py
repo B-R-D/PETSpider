@@ -61,7 +61,6 @@ class MiscSettingDialog(QWidget):
         super().__init__()
         self.cbox_pixiv = QCheckBox('Pixiv')  # Proxy availability
         self.cbox_ehentai = QCheckBox('Ehentai')  # Proxy availability
-        self.cbox_twitter = QCheckBox('Twitter')  # Proxy availability
         self.ledit_http = LineEditor()  # Http proxy
         self.ledit_https = LineEditor()  # Https proxy
 
@@ -98,7 +97,6 @@ class MiscSettingDialog(QWidget):
         hlay_cbox = QHBoxLayout()  # Checkbox for different website
         hlay_cbox.addWidget(self.cbox_pixiv)
         hlay_cbox.addWidget(self.cbox_ehentai)
-        hlay_cbox.addWidget(self.cbox_twitter)
 
         flay_proxy = QFormLayout()  # Lineedit for server_ip:port
         flay_proxy.setSpacing(20)
@@ -145,7 +143,6 @@ class MiscSettingDialog(QWidget):
             self.settings.beginGroup('MiscSetting')
             self.settings.setValue('pixiv_proxy', int(self.cbox_pixiv.isChecked()))
             self.settings.setValue('ehentai_proxy', int(self.cbox_ehentai.isChecked()))
-            self.settings.setValue('twitter_proxy', int(self.cbox_twitter.isChecked()))
             self.settings.setValue('proxy', {'http': http_proxy, 'https': https_proxy})
             self.settings.setValue('similarity', self.sbox_simi.value())
             self.settings.setValue('dl_sametime', self.sbox_dlcount.value())
@@ -165,7 +162,6 @@ class MiscSettingDialog(QWidget):
         self.settings.beginGroup('MiscSetting')
         setting_pixiv_proxy = int(self.settings.value('pixiv_proxy', False))
         setting_ehentai_proxy = int(self.settings.value('ehentai_proxy', False))
-        setting_twitter_proxy = int(self.settings.value('twitter_proxy', False))
         setting_proxy = self.settings.value('proxy', {'http': '', 'https': ''})
         setting_similarity = float(self.settings.value('similarity', 60.0))
         setting_dlcount = int(self.settings.value('dl_sametime', 3))
@@ -174,7 +170,6 @@ class MiscSettingDialog(QWidget):
 
         self.cbox_pixiv.setChecked(setting_pixiv_proxy)
         self.cbox_ehentai.setChecked(setting_ehentai_proxy)
-        self.cbox_twitter.setChecked(setting_twitter_proxy)
         self.ledit_http.setText(setting_proxy['http'])
         self.ledit_https.setText(setting_proxy['https'])
         self.sbox_simi.setValue(setting_similarity)
@@ -273,54 +268,6 @@ class LineEditor(QLineEdit):
             self.selectAll()
         elif action == act_paste:
             self.paste()
-
-
-class ResponseError(Exception):
-    """Exception for abnormal response."""
-
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str__(self):
-        return repr(self.msg)
-
-
-class IPBannedError(ResponseError):
-    """Exception for IP banned in e-hentai."""
-
-    def __init__(self, h, m, s):
-        super().__init__('IP address has been temporarily banned.')
-        self.h = h
-        self.m = m
-        self.s = s
-
-
-class LimitationReachedError(ResponseError):
-    """Exception for limitation has reached."""
-
-    def __init__(self, page):
-        super().__init__(page)
-
-
-class WrongAddressError(ResponseError):
-    """Exception for providing wrong address."""
-
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str__(self):
-        return repr(self.msg)
-
-
-class ValidationError(Exception):
-    """Exception for wrong user-id or password or other error about validation."""
-
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str__(self):
-        return repr(self.msg)
-
 
 def show_messagebox(parent, style, title: str, message: str):
     msg_box = QMessageBox(parent)

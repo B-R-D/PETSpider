@@ -1,5 +1,5 @@
 # coding:utf-8
-"""A crawler for Pixiv, E-hentai and twitter."""
+"""A crawler for Pixiv and E-hentai."""
 import os
 import sys
 from functools import partial
@@ -35,9 +35,6 @@ class MainWindow(QMainWindow):
         self.ehentai_login = None  # Ehentai login page
         self.ehentai_main = None  # Ehentai main page
         self.ehentai_icon = QIcon(os.path.join(bundle_dir, 'icon', 'ehentai.png'))
-
-        self.twitter_wid = None
-        self.twitter_var = None
 
         self.tab_widget = QTabWidget()  # Main widget of main window
         self.setCentralWidget(self.tab_widget)
@@ -133,7 +130,6 @@ class MainWindow(QMainWindow):
         self.settings.beginGroup('Cookies')
         self.settings.setValue('pixiv', '')
         self.settings.setValue('ehentai', '')
-        self.settings.setValue('twitter', '')
         self.settings.sync()
         self.settings.endGroup()
         self.pixiv_login.clear_cookies()

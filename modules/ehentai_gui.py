@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QFormLayout, QWidget, QGr
                              QCheckBox, QLabel, QSplitter, QFileDialog, QFrame, QMessageBox, QTableWidget, QHeaderView,
                              QAbstractItemView, QTableWidgetItem, QSpinBox)
 
-from modules import globj, ehentai
+from modules import globj, ehentai, exception
 
 
 class LoginWidget(QWidget):
@@ -131,9 +131,9 @@ class LoginThread(QThread):
             info = ehentai.account_info(self.session, self.proxy)
         except requests.exceptions.RequestException as e:
             self.except_signal.emit(self.parent, QMessageBox.Warning, '连接失败', '请检查网络或使用代理。\n' + repr(e))
-        except globj.ValidationError:
+        except exception.ValidationError:
             self.except_signal.emit(self.parent, QMessageBox.Critical, '错误', '登陆名或密码错误。')
-        except globj.ResponseError as e:
+        except exception.ResponseError as e:
             self.except_signal.emit(self.parent, QMessageBox.Critical,
                                     '未知错误', '返回值错误，请向开发者反馈\n{0}'.format(repr(e)))
         else:
@@ -157,10 +157,10 @@ class VerifyThread(QThread):
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError) as e:
             self.except_signal.emit(self.parent, QMessageBox.Warning, '连接失败', '请检查网络或使用代理。\n' + repr(e))
-        except globj.IPBannedError as e:
+        except exception.IPBannedError as e:
             self.except_signal.emit(self.parent, QMessageBox.Critical, 'IP被封禁',
                                     '当前IP已被封禁，将在{0}小时{1}分{2}秒后解封。'.format(e.args[0], e.args[1], e.args[2]))
-        except globj.ResponseError as e:
+        except exception.ResponseError as e:
             self.except_signal.emit(self.parent, QMessageBox.Critical,
                                     '未知错误', '返回值错误，请向开发者反馈\n{0}'.format(repr(e)))
         else:
@@ -185,13 +185,13 @@ class FetchDataThread(QThread):
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError) as e:
             self.except_signal.emit(self.parent, QMessageBox.Warning, '连接失败', '请检查网络或使用代理。\n' + repr(e))
-        except globj.IPBannedError as e:
+        except exception.IPBannedError as e:
             self.except_signal.emit(self.parent, QMessageBox.Critical, 'IP被封禁',
                                     '当前IP已被封禁，将在{0}小时{1}分{2}秒后解封。'.format(e.args[0], e.args[1], e.args[2]))
-        except globj.WrongAddressError:
+        except exception.WrongAddressError:
             self.except_signal.emit(self.parent, QMessageBox.Critical, '地址错误',
                                     '请输入正确的画廊地址。')
-        except globj.ResponseError as e:
+        except exception.ResponseError as e:
             self.except_signal.emit(self.parent, QMessageBox.Critical,
                                     '未知错误', '返回值错误，请向开发者反馈\n{0}'.format(repr(e)))
         else:
@@ -226,13 +226,13 @@ class DownloadPicThread(QRunnable):
                 requests.exceptions.ConnectionError,
                 requests.exceptions.ChunkedEncodingError) as e:
             self.signals.retry_signal.emit(self.info, self.keys, self.path, self.rn, True, repr(e))
-        except globj.LimitationReachedError:
+        except exception.LimitationReachedError:
             self.signals.except_signal.emit(self.parent, QMessageBox.Warning, '警告',
                                             '当前IP已达下载限额，请更换代理IP。')
         except (FileNotFoundError, PermissionError) as e:
             self.signals.except_signal.emit(self.parent, QMessageBox.Critical, '错误',
                                             '文件系统错误：\n' + repr(e))
-        except globj.ResponseError as e:
+        except exception.ResponseError as e:
             self.signals.except_signal.emit(self.parent, QMessageBox.Critical,
                                             '未知错误', '返回值错误，请向开发者反馈\n{0}'.format(repr(e)))
         else:
@@ -273,13 +273,13 @@ class FetchKeyThread(QThread):
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError) as e:
             self.except_signal.emit(self.parent, QMessageBox.Warning, '连接失败', '请检查网络或使用代理。\n' + repr(e))
-        except globj.IPBannedError as e:
+        except exception.IPBannedError as e:
             self.except_signal.emit(self.parent, QMessageBox.Critical, 'IP被封禁',
                                     '当前IP已被封禁，将在{0}小时{1}分{2}秒后解封。'.format(e.args[0], e.args[1], e.args[2]))
-        except globj.WrongAddressError:
+        except exception.WrongAddressError:
             self.except_signal.emit(self.parent, QMessageBox.Critical, '地址错误',
                                     '请输入正确的画廊地址。')
-        except globj.ResponseError as e:
+        except exception.ResponseError as e:
             self.except_signal.emit(self.parent, QMessageBox.Critical,
                                     '未知错误', '返回值错误，请向开发者反馈\n{0}'.format(repr(e)))
         else:

@@ -11,6 +11,7 @@ from tempfile import NamedTemporaryFile
 import requests
 from bs4 import BeautifulSoup
 
+from modules import exception
 from modules import globj
 
 # Define misc
@@ -77,14 +78,14 @@ def get_user(se, proxy: dict) -> tuple:
                                    user_res.text)
 
         if not user_info:
-            raise globj.ResponseError('Cannot fetch user info.')
+            raise exception.ResponseError('Cannot fetch user info.')
 
         user_id = user_info[0][0]
         user_name = user_info[0][2]
         return user_id, user_name
     except requests.Timeout:
         raise requests.Timeout('Timeout during getting user info.')
-    except globj.ResponseError:
+    except exception.ResponseError:
         raise
 
 
@@ -99,13 +100,13 @@ def get_following(se, proxy: dict) -> dict:
             fo_html = BeautifulSoup(fo_res.text, 'lxml')
         fo_node = fo_html.find_all('div', class_='userdata')
         if not fo_node:
-            raise globj.ResponseError('Cannot fetch following info.')
+            raise exception.ResponseError('Cannot fetch following info.')
 
         fo_info = {ele.a['data-user_id']: ele.a['data-user_name'] for ele in fo_node}
         return fo_info
     except requests.Timeout:
         raise requests.Timeout('Timeout during getting following info.')
-    except globj.ResponseError:
+    except exception.ResponseError:
         raise
 
 
@@ -132,7 +133,7 @@ def get_new(se, proxy: dict = None, num: int = 0, user_id: str = None) -> set:
                         timeout=5) as user_res:
                 user_json = json.loads(user_res.text)
             if user_json['error']:
-                raise globj.ResponseError(user_json['message'] + '(user pic)')
+                raise exception.ResponseError(user_json['message'] + '(user pic)')
             user_json = user_json['body']
             if user_json['manga'] and user_json['illusts']:  # Combine illustration and comic into one dict
                 item_dic = {**user_json['illusts'], **user_json['manga']}
@@ -153,7 +154,7 @@ def get_new(se, proxy: dict = None, num: int = 0, user_id: str = None) -> set:
                     new_html = BeautifulSoup(new_res.text, 'lxml')
                 new_node = new_html.find(id='js-mount-point-latest-following')
                 if not new_node:
-                    raise globj.ResponseError('Cannot fetch new following items.')
+                    raise exception.ResponseError('Cannot fetch new following items.')
                 p_json = json.loads(new_node['data-items'])
                 item_dic.update({item['illustId']: None for item in p_json})
 
@@ -166,7 +167,7 @@ def get_new(se, proxy: dict = None, num: int = 0, user_id: str = None) -> set:
 
     except requests.Timeout:
         raise requests.Timeout('Timeout during getting new items.')
-    except globj.ResponseError:
+    except exception.ResponseError:
         raise
 
 
@@ -189,7 +190,7 @@ def get_detail(se, pid: str, proxy: dict = None) -> dict:
                     timeout=5) as item_detail:
             item_json = json.loads(item_detail.text)
         if item_json['error']:
-            raise globj.ResponseError(item_json['message'] + '(illust detail)')
+            raise exception.ResponseError(item_json['message'] + '(illust detail)')
 
         item_json = item_json['body']
         create_date = item_json['createDate'].split('T')[0]
@@ -205,7 +206,7 @@ def get_detail(se, pid: str, proxy: dict = None) -> dict:
         }
     except requests.Timeout:
         raise requests.Timeout('Timeout during getting illust detail.')
-    except globj.ResponseError:
+    except exception.ResponseError:
         raise
 
 

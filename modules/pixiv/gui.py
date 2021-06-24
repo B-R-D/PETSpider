@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QFormLayout, QGridLayout,
                              QSplitter, QButtonGroup, QWidget, QGroupBox, QTextEdit, QPushButton, QCheckBox, QFrame,
                              QMessageBox, QTableWidget, QLabel, QAbstractItemView, QSpinBox, QComboBox, QFileDialog)
 
-import core
+import modules.pixiv.core as core
 from modules import misc, exception
 
 
@@ -91,13 +91,13 @@ class LoginWidget(QWidget):
             self.glovar.session.cookies.update(saved_cookies)
             self.verify_thread = VerifyThread(self, self.glovar.session, self.glovar.proxy)
             self.verify_thread.verify_success.connect(self.set_cookies)
-            self.verify_thread.except_signal.connect(misc.show_messagebox)
+            self.verify_thread.except_signal.connect(misc.show_msgbox)
             self.verify_thread.finished.connect(partial(self.set_disabled, False))
             self.verify_thread.start()
         else:
             self.login_thread = LoginThread(self, self.glovar.session, proxy, cookies)
             self.login_thread.login_success.connect(self.set_cookies)
-            self.login_thread.except_signal.connect(misc.show_messagebox)
+            self.login_thread.except_signal.connect(misc.show_msgbox)
             self.login_thread.finished.connect(partial(self.set_disabled, False))
             self.login_thread.start()
 
@@ -236,7 +236,7 @@ class SauceNAOThread(QThread):
             if pid:
                 self.fetch_thread = FetchThread(self.parent, self.session, self.proxy, pid, '', 0)
                 self.fetch_thread.fetch_success.connect(self.emit)
-                self.fetch_thread.except_signal.connect(misc.show_messagebox)
+                self.fetch_thread.except_signal.connect(misc.show_msgbox)
                 self.fetch_thread.start()
             else:
                 self.except_signal.emit(self.parent, QMessageBox.Information,
@@ -512,21 +512,21 @@ class MainWidget(QWidget):
             if re.match(r'^\d{2,9}$', pid) or re.match(r'^\d{2,9}$', uid):
                 self.fetch_thread = FetchThread(self, self.glovar.session, self.glovar.proxy, pid, uid, num)
                 self.fetch_thread.fetch_success.connect(self.tabulate)
-                self.fetch_thread.except_signal.connect(misc.show_messagebox)
+                self.fetch_thread.except_signal.connect(misc.show_msgbox)
                 self.fetch_thread.finished.connect(self.fetch_new_finished)
                 self.fetch_thread.start()
             else:
-                misc.show_messagebox(self, QMessageBox.Warning, '错误', 'ID号输入错误！')
+                misc.show_msgbox(self, QMessageBox.Warning, '错误', 'ID号输入错误！')
                 self.btn_get.setDisabled(False)
                 self.btn_dl.setDisabled(False)
         elif num:
             self.fetch_thread = FetchThread(self, self.glovar.session, self.glovar.proxy, pid, uid, num)
             self.fetch_thread.fetch_success.connect(self.tabulate)
-            self.fetch_thread.except_signal.connect(misc.show_messagebox)
+            self.fetch_thread.except_signal.connect(misc.show_msgbox)
             self.fetch_thread.finished.connect(self.fetch_new_finished)
             self.fetch_thread.start()
         else:
-            misc.show_messagebox(self, QMessageBox.Warning, '错误', '请输入查询信息！')
+            misc.show_msgbox(self, QMessageBox.Warning, '错误', '请输入查询信息！')
             self.btn_get.setDisabled(False)
             self.btn_dl.setDisabled(False)
 
@@ -595,7 +595,7 @@ class MainWidget(QWidget):
                     self.thread_count += 1
                     self.thread_pool.start(thread)
         else:
-            misc.show_messagebox(self, QMessageBox.Warning, '警告', '请选择至少一行！')
+            misc.show_msgbox(self, QMessageBox.Warning, '警告', '请选择至少一行！')
 
     def cancel_download(self):
         self.btn_dl.setDisabled(True)
@@ -615,7 +615,7 @@ class MainWidget(QWidget):
         """Check whether all thread in pool has ended."""
         if not self.thread_pool.activeThreadCount():
             self.ATC_monitor.stop()
-            misc.show_messagebox(*self.except_info)
+            misc.show_msgbox(*self.except_info)
             self.btn_dl.setDisabled(False)
             self.btn_dl.setText('下载')  # Single thread needs this
             self.btn_dl.clicked.disconnect(self.cancel_download)
@@ -631,7 +631,7 @@ class MainWidget(QWidget):
             elif self.except_info:
                 self.except_info()
             else:
-                misc.show_messagebox(self, QMessageBox.Information, '下载完成', '下载成功完成！')
+                misc.show_msgbox(self, QMessageBox.Information, '下载完成', '下载成功完成！')
             self.btn_dl.setText('下载')
             self.btn_dl.clicked.disconnect(self.cancel_download)
             self.btn_dl.clicked.connect(self.download)
@@ -643,7 +643,7 @@ class MainWidget(QWidget):
             self.btn_snao.setText('正在上传')
             self.sauce_thread = SauceNAOThread(self, self.glovar.session, self.glovar.proxy, path[0])
             self.sauce_thread.search_success.connect(self.tabulate)
-            self.sauce_thread.except_signal.connect(misc.show_messagebox)
+            self.sauce_thread.except_signal.connect(misc.show_msgbox)
             self.sauce_thread.finished.connect(self.search_pic_finished)
             self.sauce_thread.start()
 

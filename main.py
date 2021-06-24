@@ -79,7 +79,7 @@ class MainWindow(QMainWindow):
         """
         Construct global instances for every class.
         Return:
-            A globj.GlobalVar class instance, should be
+            A globj.Global class instance, should be
             passed to construct func of every modal.
         """
         session = requests.Session()
@@ -90,7 +90,7 @@ class MainWindow(QMainWindow):
         self.settings.beginGroup('MiscSetting')
         proxy = self.settings.value('proxy', {})
         self.settings.endGroup()
-        return misc.GlobalVar(session, proxy, bundle_dir)
+        return misc.Global(session, proxy, bundle_dir)
 
     def tab_logout(self, tab: str, info=None):
         """Switch tab widget to main page."""
@@ -133,15 +133,15 @@ class MainWindow(QMainWindow):
         self.settings.sync()
         self.settings.endGroup()
         self.pixiv_login.clear_cookies()
-        misc.show_messagebox(self, QMessageBox.Information, '清除完成', '成功清除登陆信息！')
+        misc.show_msgbox(self, QMessageBox.Information, '清除完成', '成功清除登陆信息！')
 
     def clear_db(self):
         pixiv.core.cleaner()
-        misc.show_messagebox(self, QMessageBox.Information, '清除完成', '成功清除数据库缓存！')
+        misc.show_msgbox(self, QMessageBox.Information, '清除完成', '成功清除数据库缓存！')
 
     def setting_dialog(self, setting):
-        setting.move(self.x() + (self.width() - self.misc_setting.sizeHint().width()) / 2,
-                     self.y() + (self.height() - self.misc_setting.sizeHint().height()) / 2)
+        setting.move(round(self.x() + (self.width() - self.misc_setting.sizeHint().width()) / 2),
+                     round(self.y() + (self.height() - self.misc_setting.sizeHint().height()) / 2))
         setting.show()
 
     def misc_setting_checker(self):

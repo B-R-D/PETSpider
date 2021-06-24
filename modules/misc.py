@@ -2,7 +2,6 @@
 """Global objects."""
 import os
 import platform
-import random
 import re
 from tempfile import NamedTemporaryFile
 
@@ -16,24 +15,33 @@ from modules.ehentai import gui
 from modules.pixiv import gui
 
 _RE_SYMBOL = re.compile(r'[/\\|*?<>":]')
+"""匹配不合法的字符"""
 _RE_PROXY = re.compile(r'.*:([1-9]\d{0,3}|[1-5]\d{4}|6[0-4]\d{4}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])$')
+"""匹配不合法的代理"""
+
 PLATFORM = platform.system()
+"""程序运行平台"""
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0'
+"""用户代理字符串"""
 
 
-class GlobalVar(object):
-    user_agent = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0',
-                  ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                   'Chrome/73.0.3683.86 Safari/537.36'),
-                  ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                   'Chrome/64.0.3282.140 Safari/537.36 Edge/18.17763'))
+class Global(object):
+    """所有模块使用的全局变量包装类"""
 
     def __init__(self, session: requests.Session, proxy: dict, home: str):
+        """
+        Args:
+            session: 会话对象
+            proxy: 代理字典
+            home: 主页地址
+        """
         self._session = session
         self._proxy = proxy
         self._home = home
 
     @property
     def session(self):
+        """requests.Session: 会话对象，可手动删除以关闭会话"""
         return self._session
 
     @session.deleter
@@ -42,6 +50,7 @@ class GlobalVar(object):
 
     @property
     def proxy(self):
+        """dict: 代理字典"""
         return self._proxy
 
     @proxy.setter
@@ -50,6 +59,7 @@ class GlobalVar(object):
 
     @property
     def home(self):
+        """str: 主页地址"""
         return self._home
 
     @home.setter
@@ -58,7 +68,7 @@ class GlobalVar(object):
 
 
 class MiscSettingDialog(QWidget):
-    """MiscSetting dialog class."""
+    """杂项设定对话框GUI类"""
     closed = pyqtSignal()
 
     def __init__(self):
@@ -187,11 +197,12 @@ class MiscSettingDialog(QWidget):
     def closeEvent(self, event):
         """Restore settings in the ini file, for the setting window will not be destroyed."""
         self.restore()
+        self.close()
         self.closed.emit()
 
 
 class SaveRuleDialog(QWidget):
-    """Save rule dialog class."""
+    """保存规则对话框GUI类"""
 
     def __init__(self):
         super().__init__()
@@ -242,10 +253,14 @@ class SaveRuleDialog(QWidget):
     def closeEvent(self, event):
         self.pixiv_tab.restore()
         self.ehentai_tab.restore()
+        self.close()
 
 
 class LineEditor(QLineEdit):
-    """Custom QLineEdit. Support cut, copy, paste and select all."""
+    """自定义QLineEdit类
+
+    支持剪切、复制、粘贴以及全选
+    """
 
     def __init__(self):
         super().__init__()
@@ -274,7 +289,20 @@ class LineEditor(QLineEdit):
             self.paste()
 
 
-def show_messagebox(parent, style, title: str, message: str):
+###########
+# 通用函数 #
+##########
+
+
+def show_msgbox(parent: QWidget, style: QMessageBox.Icon, title: str, message: str):
+    """显示一个仅有确定键的自定义对话框
+
+    Args:
+        parent: 对话框父对象
+        style: 对话框图标类型
+        title: 对话框标题
+        message: 对话框显示消息
+    """
     msg_box = QMessageBox(parent)
     msg_box.setWindowTitle(title)
     msg_box.setIcon(style)
@@ -284,18 +312,17 @@ def show_messagebox(parent, style, title: str, message: str):
 
 
 def download_thumb(se: requests.Session, proxy: dict, addr: str) -> str:
-    """
-    下载缩略图
+    """下载缩略图
 
     Args:
-        se (requests.Session): 会话对象
-        proxy (dict): 代理字典
-        addr (str): 缩略图地址
+        se: 会话对象
+        proxy: 代理字典
+        addr: 缩略图地址
 
     Returns:
-        成功时返回缩略图的本地绝对路径，失败时返回空字符串。
+        成功时返回缩略图的本地绝对路径，失败时返回空字符串
     """
-    header = {'User-Agent': random.choice(GlobalVar.user_agent)}
+    header = {'User-Agent': USER_AGENT}
     try:
         with se.get(addr,
                     headers=header,
@@ -313,13 +340,14 @@ def download_thumb(se: requests.Session, proxy: dict, addr: str) -> str:
 
 
 def name_verify(name: str, default: str = 'NoName') -> str:
-    """
-    Normalize file/folder name.
+    """按不同运行平台检查并合法化文件/文件夹名称
+
     Args:
-        name: A string of file/folder name.
-        default: When the illegal name leads to an empty string, return this.
+        name: 文件/文件夹名称字符串
+        default: 当文件名不合法导致空名称时，将目标命名为该字符串
+
     Returns:
-        A legal string for file/folder name.
+        合法化后的文件/文件夹名称
     """
     if PLATFORM == 'Windows':
         illegal_name = {'con', 'aux', 'nul', 'prn', 'com0', 'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7',
@@ -339,7 +367,3 @@ def name_verify(name: str, default: str = 'NoName') -> str:
 
 if __name__ == '__main__':
     pass
-    # print('/con?:', name_verify('/con?', 'IllegalName'))
-    # print('.hack"thank:', name_verify('.hack"thank', 'IllegalName'))
-    # print('...aux*Myname...:', name_verify('...aux*Myname...', 'IllegalName'))
-    # print('...:', name_verify('...', 'IllegalName'))

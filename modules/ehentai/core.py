@@ -1,14 +1,13 @@
 # coding:utf-8
 """E(x)hentai components."""
 import os
-import random
 import re
 
 import requests
 from bs4 import BeautifulSoup
 
+import modules.misc as misc
 from modules import exception
-from modules.misc import GlobalVar, name_verify
 
 _LOGIN_URL = 'https://forums.e-hentai.org/index.php'
 _ACCOUNT_URL = 'https://e-hentai.org/home.php'
@@ -38,7 +37,7 @@ def login(se, proxy: dict, uid: str, pw: str) -> bool:
         with se.post(_LOGIN_URL,
                      params={'act': 'Login', 'CODE': '01'},
                      data={'CookieDate': '1', 'UserName': uid, 'PassWord': pw},
-                     headers={'User-Agent': random.choice(GlobalVar.user_agent)},
+                     headers={'User-Agent': misc.USER_AGENT},
                      proxies=proxy,
                      timeout=5) as login_res:
             login_html = BeautifulSoup(login_res.text, 'lxml')
@@ -47,7 +46,7 @@ def login(se, proxy: dict, uid: str, pw: str) -> bool:
         if login_html.head.title.string == 'Please stand by...':
             with se.get(_EXHENTAI_URL,
                         proxies=proxy,
-                        headers={'User-Agent': random.choice(GlobalVar.user_agent)},
+                        headers={'User-Agent': misc.USER_AGENT},
                         timeout=5) as ex_res:
                 ex_html = BeautifulSoup(ex_res.text, 'lxml')
                 if ex_html.head.title.string == 'ExHentai.org':
@@ -74,7 +73,7 @@ def account_info(se, proxy: dict) -> tuple:
     """
     try:
         with se.get(_ACCOUNT_URL,
-                    headers={'User-Agent': random.choice(GlobalVar.user_agent)},
+                    headers={'User-Agent': misc.USER_AGENT},
                     proxies=proxy,
                     timeout=5) as info_res:
             info_html = BeautifulSoup(info_res.text, 'lxml')
@@ -103,7 +102,7 @@ def information(se, proxy: dict, addr: str) -> dict:
     try:
         with se.get(addr,
                     params={'inline_set': 'ts_m'},
-                    headers={'User-Agent': random.choice(GlobalVar.user_agent)},
+                    headers={'User-Agent': misc.USER_AGENT},
                     proxies=proxy,
                     timeout=5) as gallery_res:
             gallery_html = BeautifulSoup(gallery_res.text, 'lxml')
@@ -113,14 +112,14 @@ def information(se, proxy: dict, addr: str) -> dict:
         name: str = gallery_html.find('h1', id='gj').string  # Japanese name is prior
         if not name:
             name = gallery_html.find('h1', id='gn').string
-        misc = gallery_html.find_all('td', class_='gdt2')
+        info = gallery_html.find_all('td', class_='gdt2')
         thumb = re_thumb.match(gallery_html.find('div', id='gd1').div['style']).group(1)
-        if name and misc and thumb:
+        if name and info and thumb:
             return {
                 'addr': addr,
                 'name': name,
-                'size': misc[4].string,
-                'page': misc[5].string[:-6],
+                'size': info[4].string,
+                'page': info[5].string[:-6],
                 'thumb': thumb
             }
         else:
@@ -153,7 +152,7 @@ def fetch_keys(se, proxy: dict, info: dict) -> dict:
         for p in range(pn):
             with se.get(info['addr'],
                         params={'inline_set': 'ts_m', 'p': p},
-                        headers={'User-Agent': random.choice(GlobalVar.user_agent)},
+                        headers={'User-Agent': misc.USER_AGENT},
                         proxies=proxy,
                         timeout=5) as gallery_res:
                 gallery_html = BeautifulSoup(gallery_res.text, 'lxml')
@@ -168,7 +167,7 @@ def fetch_keys(se, proxy: dict, info: dict) -> dict:
         # Fetch showkey from first picture
         showkey_url = '/'.join(['https://exhentai.org/s', keys['1'], gid + '-1'])
         with se.get(showkey_url,
-                    headers={'User-Agent': random.choice(GlobalVar.user_agent)},
+                    headers={'User-Agent': misc.USER_AGENT},
                     proxies=proxy,
                     timeout=5) as showkey_res:
             showkey_html = BeautifulSoup(showkey_res.text, 'lxml')
@@ -206,7 +205,7 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
                            'page': int(page),
                            'imgkey': keys[str(page)],
                            'showkey': keys['0']},
-                     headers={'User-Agent': random.choice(GlobalVar.user_agent)},
+                     headers={'User-Agent': misc.USER_AGENT},
                      proxies=proxy,
                      timeout=5) as dl_res:  # Fetch original url of picture
             dl_json = dl_res.json()
@@ -227,7 +226,7 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
         else:
             raise exception.ResponseError('Download: No plenty elements.')
 
-        folder_name = name_verify(info['name'])
+        folder_name = misc.name_verify(info['name'])
         folder_path = os.path.join(path, folder_name)
         try:  # Prevent threads starting at same time
             os.makedirs(folder_path)
@@ -235,7 +234,7 @@ def download(se, proxy: dict, info: dict, keys: dict, page: int, path: str, rena
         except FileExistsError:
             pass
         with se.get(origin,
-                    headers={'User-Agent': random.choice(GlobalVar.user_agent)},
+                    headers={'User-Agent': misc.USER_AGENT},
                     proxies=proxy,
                     stream=True,
                     timeout=5) as pic_res:
